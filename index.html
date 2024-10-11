@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalendarz Pracowników</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        label {
+            margin-right: 10px;
+        }
+        input, select, button {
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .holiday {
+            background-color: #ffeb3b;
+        }
+        .meeting {
+            background-color: #8bc34a;
+        }
+        .other {
+            background-color: #03a9f4;
+        }
+        .draggable {
+            cursor: move;
+        }
+    </style>
+</head>
+<body>
+    <h1>Kalendarz Pracowników</h1>
+    <label for="date">Wybierz datę:</label>
+    <input type="date" id="date">
+    <label for="employee">Wybierz pracownika:</label>
+    <select id="employee">
+        <option value="Jan Kowalski">Jan Kowalski</option>
+        <option value="Anna Nowak">Anna Nowak</option>
+        <option value="Piotr Wiśniewski">Piotr Wiśniewski</option>
+    </select>
+    <label for="eventType">Typ wydarzenia:</label>
+    <select id="eventType">
+        <option value="holiday">Dzień wolny</option>
+        <option value="meeting">Spotkanie</option>
+        <option value="other">Inne</option>
+    </select>
+    <label for="comment">Komentarz/Notatka:</label>
+    <input type="text" id="comment">
+    <button onclick="addEmployee()">Dodaj pracownika</button>
+    <br><br>
+    <label for="filter">Filtruj pracowników:</label>
+    <input type="text" id="filter" onkeyup="filterEmployees()" placeholder="Wpisz imię pracownika">
+    <br><br>
+    <label for="startDate">Od:</label>
+    <input type="date" id="startDate" onchange="filterByDate()">
+    <label for="endDate">Do:</label>
+    <input type="date" id="endDate" onchange="filterByDate()">
+    <br><br>
+    <label for="searchComment">Szukaj w komentarzach:</label>
+    <input type="text" id="searchComment" onkeyup="filterByComment()" placeholder="Wpisz komentarz">
+    <br><br>
+    <button onclick="exportToCSV()">Eksportuj do CSV</button>
+    <button onclick="printCalendar()">Drukuj kalendarz</button>
+    <br><br>
+    <button onclick="toggleView('monthly')">Widok miesięczny</button>
+    <button onclick="toggleView('weekly')">Widok tygodniowy</button>
+    <table id="calendarTable">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Pracownik</th>
+                <th>Komentarz/Notatka</th>
+                <th>Akcja</th>
+            </tr>
+        </thead>
+        <tbody id="calendarBody">
+        </tbody>
+    </table>
+
+    <script>
+        let currentView = 'monthly';
+
+        function addEmployee() {
+            const date = document.getElementById('date').value;
+            const employee = document.getElementById('employee').value;
+            const eventType = document.getElementById('eventType').value;
+            const comment = document.getElementById('comment').value;
+            if (date && employee) {
+                const table = document.getElementById('calendarBody');
+                const row = table.insertRow();
+                row.classList.add('draggable');
+                row.draggable = true;
+                row.ondragstart = dragStart;
+                row.ondragover = dragOver;
+                row.ondrop = drop;
+                const cell1 = row.insertCell(0);
+                const cell2 = row.insertCell(1);
+                const cell3 = row.insertCell(2);
+                const cell4 = row.insertCell(3);
+                cell1.textContent = date;
+                cell2.textContent = employee;
+                cell3.textContent = comment;
+                row.classList.add(eventType);
+                const editButton = document.createElement('button');
+                editButton.textContent = 'Edytuj';
+                editButton.onclick = function() {
+                    editEmployee(row);
+                };
+                cell4.appendChild(editButton);
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Usuń';
+                deleteButton.onclick = function() {
+                    table.deleteRow(row.rowIndex);
+                };
+                cell4.appendChild(deleteButton);
+            } else {
+                alert('Proszę wybrać datę i pracownika.');
+            }
+        }
+
+        function editEmployee(row) {
+            const dateCell = row.cells;
+            const employeeCell = row.cells;
+            const commentCell = row.cells;
+            const actionCell = row.cells;
+
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.value = dateCell.textContent;
+            dateCell.textContent = '';
+            dateCell.appendChild(dateInput);
+
+            const employeeInput = document.createElement('input');
+            employeeInput.type = 'text';
+            employeeInput.value = employeeCell.textContent;
+            employeeCell.textContent = '';
+            employeeCell.appendChild(employeeInput);
+
+            const commentInput = document.createElement('input');
+            commentInput.type = 'text';
+            commentInput.value = commentCell.textContent;
+            commentCell.textContent = '';
+            commentCell.appendChild(commentInput);
+
+            const eventTypeSelect = document.createElement('select');
+            eventTypeSelect.innerHTML = `
+                <option value="holiday">Dzień wolny</option>
+                <option value="meeting">Spotkanie</option>
+                <option value="other">Inne</option>
+            `;
+            eventTypeSelect.value = row.classList.contains('holiday') ? 'holiday' : row.classList.contains('meeting') ? 'meeting' : 'other';
+            actionCell.innerHTML = '';
+            actionCell.appendChild(eventTypeSelect);
+
+            const saveButton = document.createElement('button');
+            saveButton.textContent = 'Zapisz';
+            saveButton.onclick = function() {
+                dateCell.textContent = dateInput.value;
+                employeeCell.textContent = employeeInput.value;
+                commentCell.textContent = commentInput.value;
+                row.className = '';
+                row.classList.add(eventTypeSelect.value);
+                actionCell.innerHTML = '';
+                const editButton = document.createElement('button');
+                editButton.textContent = 'Edytuj';
+                editButton.onclick = function() {
+                    editEmployee(row);
+                };
+                actionCell.appendChild(editButton);
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Usuń';
+                deleteButton.onclick = function() {
+                    document.getElementById('calendarBody').deleteRow(row.rowIndex);
+                };
+                actionCell.appendChild(deleteButton);
+            };
+            actionCell.appendChild(saveButton);
+        }
+
+        function filterEmployees() {
+            const filter = document.getElementById('filter').value.toLowerCase();
+            const rows = document.getElementById('calendarBody').getElementsByTagName('tr');
+            for (let i = 0; i < rows.length; i++) {
+                const employeeCell = rows[i].getElementsByTagName('td');
+                if (employeeCell) {
+                    const employeeName = employeeCell.textContent || employeeCell.innerText;
+                    if (employeeName.toLowerCase().indexOf(filter) > -1) {
+                        rows[i].style.display = '';
+                    } else {
+                        rows[i].style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        function filterByDate() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const rows = document.getElementById('calendarBody').getElementsByTagName('
